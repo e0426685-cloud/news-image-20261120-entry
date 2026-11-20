@@ -1,52 +1,69 @@
-"""Entry for make.fun's news-image-20261120 bounty (Python 3.13, stdlib only).
+"""news-image-20261120 entrypoint (Python 3.13, standard library only).
 
-The repository holds the finished front page as entry.png, rendered from the
-world news of Friday 20 November 2026 by tools/build_image.py. This program
-is the graded entrypoint: it validates the picture against the competition
-gate (a whole PNG or JPEG, at most 1 MiB) and writes it, byte for byte, to
-<output>/entry.png, where <output> is $MAKEFUN_OUTPUT_DIR locally and
-/output in the grader's container. It runs twice and both runs must produce
-identical bytes, so it does nothing but read, check and copy the one file.
+The front page for Friday 20 November 2026 is committed in this repo as
+entry.png (drawn by tools/build_image.py). This program is what the grader
+runs: it reads that picture, checks it against the competition's gate (a
+complete PNG or JPEG, no more than 1 MiB and 1024x1024 px), and writes it
+unchanged to $MAKEFUN_OUTPUT_DIR/entry.png (or /output/entry.png in the
+grading container). It only copies bytes, so two runs produce identical
+output.
 
-Run locally:
+Local check:
     mkdir -p out && MAKEFUN_OUTPUT_DIR=out python3 main.py
 """
 
 import os
+import struct
 import sys
 from pathlib import Path
 
-MAX_BYTES = 1_048_576  # the gate's 1 MiB cap
-PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
-JPEG_MAGIC = b"\xff\xd8\xff"
+BYTE_CAP = 1_048_576
+PNG_SIG = b"\x89PNG\r\n\x1a\n"
+JPG_SIG = b"\xff\xd8\xff"
+PNG_TAIL = b"IEND\xaeB`\x82"
 
 
-def load_picture() -> bytes:
-    """Read entry.png beside this file and check it passes the gate's shape."""
-    picture_path = Path(__file__).resolve().parent / "entry.png"
-    data = picture_path.read_bytes()
-    if not data:
+def read_entry() -> bytes:
+    """Load entry.png from beside this file; refuse anything off-gate."""
+    here = Path(__file__).resolve().parent
+    blob = (here / "entry.png").read_bytes()
+    if len(blob) == 0:
         raise SystemExit("entry.png is empty")
-    if len(data) > MAX_BYTES:
-        raise SystemExit(f"entry.png is {len(data)} bytes, over the 1 MiB gate cap")
-    if not (data.startswith(PNG_MAGIC) or data.startswith(JPEG_MAGIC)):
-        raise SystemExit("entry.png is neither a PNG nor a JPEG by its first bytes")
-    if data.startswith(PNG_MAGIC) and not data.endswith(b"IEND\xaeB`\x82"):
-        raise SystemExit("entry.png does not end with a PNG IEND chunk")
-    return data
+    if len(blob) > BYTE_CAP:
+        raise SystemExit(f"entry.png is {len(blob)} bytes, above the 1 MiB cap")
+    if blob.startswith(PNG_SIG):
+        if not blob.endswith(PNG_TAIL):
+            raise SystemExit("entry.png is a truncated PNG (no IEND chunk)")
+        width, height = struct.unpack(">II", blob[16:24])
+        if width > 1024 or height > 1024:
+            raise SystemExit(f"entry.png is {width}x{height}, above the 1024 cap")
+        print(f"entry.png is a {width}x{height} PNG ({len(blob)} bytes)")
+    elif blob.startswith(JPG_SIG):
+        if not blob.endswith(b"\xff\xd9"):
+            raise SystemExit("entry.png is a truncated JPEG (no EOI marker)")
+        print(f"entry.png is a JPEG ({len(blob)} bytes)")
+    else:
+        raise SystemExit("entry.png starts with neither the PNG nor JPEG magic")
+    return blob
 
 
-def main() -> int:
-    data = load_picture()
-    output_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
-    output_dir.mkdir(parents=True, exist_ok=True)
-    target = output_dir / "entry.png"
-    target.write_bytes(data)
-    if target.read_bytes() != data:
-        raise SystemExit("written entry.png does not match the source bytes")
-    print(f"wrote {target} ({len(data)} bytes)")
+def write_output(blob: bytes) -> Path:
+    """Write the picture to the output directory and prove it matches."""
+    out_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dest = out_dir / "entry.png"
+    dest.write_bytes(blob)
+    if dest.read_bytes() != blob:
+        raise SystemExit("the written entry.png differs from the source")
+    return dest
+
+
+def run() -> int:
+    blob = read_entry()
+    dest = write_output(blob)
+    print(f"wrote {dest} ({len(blob)} bytes)")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run())

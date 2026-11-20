@@ -1,10 +1,12 @@
-# news-image-20261120-entry
+# The World Today — 20 November 2026
 
 [![make.fun · news-image-20261120](https://make.fun/badge/news-image-20261120.svg)](https://make.fun/bounty/news-image-20261120?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261120)
 [![rank](https://make.fun/badge/news-image-20261120/e0426685-cloud/news-image-20261120-entry/rank.svg)](https://make.fun/bounty/news-image-20261120/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261120)
 [![reward](https://make.fun/badge/news-image-20261120/e0426685-cloud/news-image-20261120-entry/reward.svg)](https://make.fun/bounty/news-image-20261120?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261120)
 
-A deterministic Python entry for make.fun's "Sum up 20 November's world news in one image" bounty. `main.py` writes a broadsheet front page for Friday 20 November 2026 — the historic Trump–Xi–Putin trilateral summit in China, the world court's genocide ruling on Myanmar, Cyclone Akvan's landfall, Voyager 1's light-day milestone, Anthropic's first day of trading, the India–New Zealand Test, GTA VI's sales record and the Prince and Princess of Wales in New Delhi — as a single PNG image. The picture itself is rendered by `tools/build_image.py` and committed as `entry.png`; `main.py` validates it and copies it to the output directory, byte for byte, so both grading runs produce identical bytes.
+One page of world news for Friday 20 November 2026, built for make.fun's daily news-image bounty. The page leads with the first-ever Trump–Xi–Putin three-way summit in China and the world court's genocide ruling on Myanmar, then covers Cyclone Akvan, Voyager 1's light-day milestone, Anthropic's stock-market debut, the Wellington Test, GTA VI's sales record and the Prince and Princess of Wales in New Delhi.
+
+`tools/build_image.py` draws the page and saves it as `entry.png`. `main.py` is the graded program: it checks the picture against the bounty gate and copies it, byte for byte, to the output folder, so repeated runs are identical.
 
 ## Run it
 

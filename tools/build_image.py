@@ -1,171 +1,182 @@
-"""Render entry.png: a broadsheet front page for Friday 20 November 2026.
+"""Draw the 20 November 2026 front page (entry.png, 1024x1024).
 
-Local build tool only (uses Pillow); the graded program is main.py, which
-copies the picture this script writes. Every story below was reported on
-20 November 2026 (see the day's news wires): the historic Trump-Xi-Putin
-trilateral summit in China, the world court's genocide ruling on Myanmar,
-Cyclone Akvan's landfall in India, Voyager 1's light-day milestone,
-Anthropic's first day of trading, the India-New Zealand Test, GTA VI's
-sales record and the Prince and Princess of Wales in New Delhi.
+Build-time renderer only — it runs here, on this machine, with Pillow.
+The graded program is main.py, which ships the finished picture. All
+stories below were first reported on Friday 20 November 2026: the
+Trump-Xi-Putin meeting in China, the ICJ genocide ruling on Myanmar,
+Cyclone Akvan, Voyager 1, Anthropic's market debut, the Wellington Test,
+GTA VI sales and the Waleses in Delhi.
 
-Run:  python3 tools/build_image.py   (writes ../entry.png, 1024x1024)
+Run:  python3 tools/build_image.py
 """
 
-from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+from pathlib import Path
 
-W = H = 1024
-PAPER = (247, 243, 233)
-INK = (17, 17, 17)
-ACCENT = (142, 22, 22)
-GREY = (84, 80, 72)
+PAGE = 1024
+MARGIN = 40
+GUTTER = 24
+BG = (248, 244, 234)
+FG = (18, 18, 18)
+RED = (150, 24, 24)
+MUTED = (90, 86, 76)
 
-SERIF = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
-SERIF_B = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-SANS_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-
-
-def font(path, size):
-    return ImageFont.truetype(path, size)
-
-
-def wrap(draw, text, fnt, width):
-    words, lines, cur = text.split(), [], ""
-    for word in words:
-        trial = f"{cur} {word}".strip()
-        if draw.textlength(trial, font=fnt) <= width:
-            cur = trial
-        else:
-            if cur:
-                lines.append(cur)
-            cur = word
-    if cur:
-        lines.append(cur)
-    return lines
+FONTS = {
+    "serif": "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    "serif_b": "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+    "sans": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "sans_b": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+}
 
 
-def text_block(draw, xy, text, fnt, width, fill=INK, leading=1.25):
-    x, y = xy
-    for line in wrap(draw, text, fnt, width):
+def load(name, size):
+    return ImageFont.truetype(FONTS[name], size)
+
+
+def lines_for(draw, text, fnt, width):
+    """Split text into lines that fit width, measured with the real font."""
+    out = []
+    for chunk in text.split("\n"):
+        # Re-wrap by measuring, so long words still break cleanly at the
+        # pixel width.
+        words = chunk.split()
+        cur = ""
+        for word in words:
+            trial = (cur + " " + word).strip()
+            if draw.textlength(trial, font=fnt) <= width or not cur:
+                cur = trial
+            else:
+                out.append(cur)
+                cur = word
+        if cur:
+            out.append(cur)
+    return out
+
+
+def para(draw, x, y, text, fnt, width, fill=FG, gap=None):
+    """Draw a wrapped paragraph; return the y just below its last line."""
+    step = int(fnt.size * 1.28) if gap is None else gap
+    for line in lines_for(draw, text, fnt, width):
         draw.text((x, y), line, font=fnt, fill=fill)
-        y += int(fnt.size * leading)
+        y += step
     return y
 
 
-def story(draw, xy, width, kicker, headline, body, head_size=22):
-    x, y = xy
-    draw.text((x, y), kicker, font=font(SANS_B, 13), fill=ACCENT)
-    y += 19
-    y = text_block(draw, (x, y), headline, font(SERIF_B, head_size), width, leading=1.12)
-    y += 3
-    y = text_block(draw, (x, y), body, font(SERIF, 14), width, leading=1.26)
-    return y
-
-
-def main():
-    img = Image.new("RGB", (W, H), PAPER)
-    d = ImageDraw.Draw(img)
-    margin = 44
-    right = W - margin
-
-    # Masthead
-    d.line([(margin, 30), (right, 30)], fill=INK, width=2)
-    title = "The World Today"
-    tf = font(SERIF_B, 66)
-    d.text(((W - d.textlength(title, font=tf)) / 2, 40), title, font=tf, fill=INK)
-    dateline = "FRIDAY, 20 NOVEMBER 2026  ·  THE DAY'S WORLD NEWS IN ONE PAGE"
-    df = font(SANS_B, 16)
-    d.text(((W - d.textlength(dateline, font=df)) / 2, 122), dateline, font=df, fill=ACCENT)
-    d.line([(margin, 152), (right, 152)], fill=INK, width=4)
-    d.line([(margin, 160), (right, 160)], fill=INK, width=1)
-
-    # Lead story: the trilateral summit in China
-    y = 176
-    d.text((margin, y), "DIPLOMACY  ·  APEC SUMMIT, SHENZHEN", font=font(SANS_B, 14), fill=ACCENT)
-    y += 24
-    y = text_block(d, (margin, y), "Trump, Xi and Putin Meet in a Historic Three-Way Summit",
-                   font(SERIF_B, 41), right - margin, leading=1.08)
-    y += 6
-    y = text_block(d, (margin, y),
-                   "The three presidents sit down together for the first time, in China, to talk "
-                   "about nuclear arms control and global security — Trump saying no peace was "
-                   "ever forged by declining opportunities — as APEC leaders in Shenzhen debate "
-                   "trade, investment and new technology.",
-                   font(SERIF, 17), right - margin, leading=1.3)
-    y += 10
-    d.line([(margin, y), (right, y)], fill=INK, width=1)
-    y += 10
-
-    # Second lead: the world court's ruling on Myanmar
-    y = text_block(d, (margin, y), "World Court Rules Myanmar Committed Genocide Against the Rohingya",
-                   font(SERIF_B, 27), right - margin, leading=1.12)
+def kicker_headline(draw, x, y, width, tag, head, body, head_px=23):
+    draw.text((x, y), tag, font=load("sans_b", 13), fill=RED)
+    y += 20
+    y = para(draw, x, y, head, load("serif_b", head_px), width, gap=int(head_px * 1.14))
     y += 4
-    y = text_block(d, (margin, y),
-                   "The International Court of Justice finds Myanmar's military likely intended "
-                   "to destroy a substantial part of the Rohingya minority in its 2017 crackdown, "
-                   "a landmark ruling under the genocide convention.",
-                   font(SERIF, 15), right - margin, leading=1.28)
+    y = para(draw, x, y, body, load("serif", 14), width)
+    return y
+
+
+LEAD_HEAD = "Trump, Xi and Putin Hold a First Three-Way Summit in China"
+LEAD_BODY = (
+    "The three presidents meet face to face in China to discuss nuclear arms "
+    "control and global security, with Trump saying no peace was ever forged "
+    "by declining opportunities, while APEC leaders gathered in Shenzhen "
+    "debate trade, investment and new technology."
+)
+SECOND_HEAD = "World Court Finds Myanmar Guilty of Genocide Against the Rohingya"
+SECOND_BODY = (
+    "The International Court of Justice rules that Myanmar's military likely "
+    "intended to destroy a substantial part of the Rohingya minority in its "
+    "2017 crackdown — a landmark judgment under the genocide convention."
+)
+
+COLUMNS = [
+    [
+        ("WEATHER", "Cyclone Akvan Comes Ashore on India's East Coast",
+         "Hundreds of thousands are evacuated in Odisha and Andhra Pradesh as "
+         "the severe cyclone makes landfall, schools close and hundreds of "
+         "rescue teams are deployed."),
+        ("SCIENCE", "Voyager 1 Crosses One Light-Day From Earth",
+         "NASA confirms its most distant probe has travelled a distance light "
+         "itself needs a full day to cover, nearly fifty years after launch."),
+        ("BUSINESS", "Anthropic Stock Leaps 17% on Its First Trading Day",
+         "The AI firm's shares close sharply higher on debut, with reports "
+         "valuing the company near $1.5 trillion as investors rush into "
+         "artificial intelligence."),
+    ],
+    [
+        ("SPORT", "Nicholls' Hundred Rescues New Zealand in Wellington",
+         "Henry Nicholls makes 113 not out on day one of the first Test "
+         "against India at the Basin Reserve, steadying the hosts after "
+         "early wickets fell."),
+        ("CULTURE", "GTA VI Overtakes The Odyssey's $1.8bn Box Office",
+         "Grand Theft Auto VI's worldwide sales pass a Hollywood hit's entire "
+         "cinema run, only days after the game's long-awaited launch."),
+        ("ROYALTY", "Modi Welcomes the Prince and Princess of Wales",
+         "India's prime minister receives the royal couple in New Delhi for "
+         "talks on closer India-UK relations and strategic cooperation."),
+    ],
+]
+
+FOOTER = (
+    "ALSO TODAY:  Trump puts any decision on war with Iran off until 2027  ·  "
+    "Japan's Hayabusa2 gives up its asteroid landing after engine trouble  ·  "
+    "South Korea's highest court clears former PM Han Duck-soo  ·  Europe says "
+    "it is ready to talk to Russia about ending the Ukraine war  ·  The US and "
+    "Venezuela restore military cooperation  ·  World Children's Day"
+)
+
+
+def build():
+    canvas = Image.new("RGB", (PAGE, PAGE), BG)
+    d = ImageDraw.Draw(canvas)
+    edge = PAGE - MARGIN
+
+    # Masthead: thin rule, nameplate, dateline, heavy rule pair.
+    d.line([(MARGIN, 28), (edge, 28)], fill=FG, width=2)
+    name = "The World Today"
+    nf = load("serif_b", 64)
+    d.text(((PAGE - d.textlength(name, font=nf)) / 2, 38), name, font=nf, fill=FG)
+    date = "FRIDAY 20 NOVEMBER 2026  ·  THE DAY IN ONE PAGE"
+    df = load("sans_b", 16)
+    d.text(((PAGE - d.textlength(date, font=df)) / 2, 118), date, font=df, fill=RED)
+    d.line([(MARGIN, 148), (edge, 148)], fill=FG, width=4)
+    d.line([(MARGIN, 156), (edge, 156)], fill=FG, width=1)
+
+    # Lead story, full width.
+    y = 172
+    d.text((MARGIN, y), "DIPLOMACY  ·  APEC, SHENZHEN", font=load("sans_b", 14), fill=RED)
+    y += 24
+    y = para(d, MARGIN, y, LEAD_HEAD, load("serif_b", 42), edge - MARGIN, gap=46)
+    y += 8
+    y = para(d, MARGIN, y, LEAD_BODY, load("serif", 17), edge - MARGIN)
+    y += 10
+    d.line([(MARGIN, y), (edge, y)], fill=FG, width=1)
+    y += 10
+
+    # Second story, full width.
+    y = para(d, MARGIN, y, SECOND_HEAD, load("serif_b", 27), edge - MARGIN, gap=31)
+    y += 5
+    y = para(d, MARGIN, y, SECOND_BODY, load("serif", 15), edge - MARGIN)
     y += 12
-    d.line([(margin, y), (right, y)], fill=INK, width=2)
+    d.line([(MARGIN, y), (edge, y)], fill=FG, width=2)
     y += 14
 
-    # Two columns of the day's other news
-    col_w = (right - margin - 28) // 2
-    lx, rx = margin, margin + col_w + 28
-    ly = story(d, (lx, y), col_w, "WEATHER",
-               "Cyclone Akvan Makes Landfall on India's East Coast",
-               "Hundreds of thousands are evacuated in Odisha and Andhra Pradesh as the severe "
-               "cyclone comes ashore, with schools closed and hundreds of rescue teams deployed.",
-               head_size=22)
-    ly += 12
-    ly = story(d, (lx, ly), col_w, "SCIENCE",
-               "Voyager 1 Reaches One Light-Day From Home",
-               "NASA confirms its farthest probe has crossed a distance light itself needs a full "
-               "day to travel, nearly fifty years after launch.",
-               head_size=22)
-    ly += 12
-    ly = story(d, (lx, ly), col_w, "BUSINESS",
-               "Anthropic Shares Jump 17% on First Day of Trading",
-               "The AI company's stock market debut closes sharply higher, with reports putting "
-               "its value near $1.5 trillion as investors pile into artificial intelligence.",
-               head_size=22)
+    # Two columns, each drawn from its story list.
+    col_w = (edge - MARGIN - GUTTER) // 2
+    bottom = y
+    for i, stories in enumerate(COLUMNS):
+        x = MARGIN + i * (col_w + GUTTER)
+        cy = y
+        for tag, head, body in stories:
+            cy = kicker_headline(d, x, cy, col_w, tag, head, body)
+            cy += 12
+        bottom = max(bottom, cy)
 
-    ry = story(d, (rx, y), col_w, "SPORT",
-               "Nicholls' Unbeaten Century Steadies New Zealand",
-               "Henry Nicholls scores 113 not out on the opening day of the first Test against "
-               "India at the Basin Reserve in Wellington, reviving the hosts after early wickets.",
-               head_size=22)
-    ry += 12
-    ry = story(d, (rx, ry), col_w, "CULTURE",
-               "GTA VI Sales Pass The Odyssey's $1.8 Billion",
-               "Grand Theft Auto VI's global sales overtake a Hollywood blockbuster's entire run, "
-               "days after the game's long-awaited launch.",
-               head_size=22)
-    ry += 12
-    ry = story(d, (rx, ry), col_w, "ROYALTY",
-               "Modi Meets Prince and Princess of Wales in Delhi",
-               "India's prime minister welcomes the royal couple to New Delhi to talk about "
-               "strengthening India-UK relations and strategic cooperation.",
-               head_size=22)
+    # Footer strip under the taller column.
+    fy = bottom + 2
+    d.line([(MARGIN, fy), (edge, fy)], fill=FG, width=2)
+    para(d, MARGIN, fy + 10, FOOTER, load("sans", 12), edge - MARGIN, fill=MUTED)
 
-    # Footer strip (must stay inside the page: it starts wherever the taller
-    # column ended, and the text is sized so its three lines end above y=1010)
-    fy = max(ly, ry) + 12
-    d.line([(margin, fy), (right, fy)], fill=INK, width=2)
-    fy += 9
-    text_block(d, (margin, fy),
-               "ALSO TODAY:  Trump pushes any Iran war decision to 2027  ·  Japan's Hayabusa2 "
-               "abandons its asteroid landing after engine trouble  ·  South Korea's top court "
-               "clears former PM Han Duck-soo  ·  Europe ready for talks with Russia on ending "
-               "the Ukraine war  ·  US and Venezuela restore military cooperation  ·  World "
-               "Children's Day",
-               font(SANS, 12), right - margin, fill=GREY, leading=1.3)
-
-    out = Path(__file__).resolve().parent.parent / "entry.png"
-    img.save(out, optimize=True)
-    print(f"wrote {out} ({out.stat().st_size} bytes)")
+    target = Path(__file__).resolve().parent.parent / "entry.png"
+    canvas.save(target, optimize=True)
+    print(f"wrote {target} ({target.stat().st_size} bytes)")
 
 
 if __name__ == "__main__":
-    main()
+    build()
